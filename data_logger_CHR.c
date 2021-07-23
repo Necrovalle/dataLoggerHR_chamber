@@ -2,27 +2,100 @@
 //* ADQUISICION DE DATOS DE CAMARA DE HUMEDAD 
 //* PARA PRUEBAS DE HIDROGEL
 //* DESARROLLADOR: Necrovalle
-//* VERSION: 0.3a
+//* VERSION: 0.4a
 //* repositorio: https://github.com/Necrovalle/dataLoggerHR_chamber.git 
 //****************************************************************************
 //Comamdo de compilacion:
-//gcc plotter_camara_humedad.c -o hrplotter `pkg-config --cflags --libs gtk+-2.0`
+//gcc data_logger_CHR.c -o hrplotter -pthread `pkg-config --cflags --libs gtk+-2.0`
 
 //------------------------------------------------------------------ LIBRERIAS
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <gtk/gtk.h>
+#include <sys/stat.h>
+#include <pthread.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <termios.h>
+#include <time.h>
 
 //----------------------------------------------------- DECLARACIONES GLOBALES
 
+int Cm=0;
+unsigned char cmd = 'L';
+struct termios tio;
+struct termios stdio;
+struct termios old_stdio;
+int tty_fd;
+unsigned char c='D';
 //declaracion de entradas
 GtkWidget *entPuerto, *entFile;
 
 //---------------------------------------------------------- FUNCIONES PROPIAS
+//Manejo de hilo
+void *thread_routine(void *arg){
+	tcgetattr(STDOUT_FILENO,&old_stdio);
+	memset(&stdio,0,sizeof(stdio));
+	stdio.c_iflag=0;
+	stdio.c_oflag=0;
+	stdio.c_cflag=0;
+	stdio.c_lflag=0;
+	stdio.c_cc[VMIN]=1;
+	stdio.c_cc[VTIME]=0;
+	tcsetattr(STDOUT_FILENO,TCSANOW,&stdio);
+	tcsetattr(STDOUT_FILENO,TCSAFLUSH,&stdio);
+	fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK); // make the reads non-blocking
+
+	memset(&tio,0,sizeof(tio));
+	tio.c_iflag=0;
+	tio.c_oflag=0;
+	tio.c_cflag=CS8|CREAD|CLOCAL; // 8n1, see termios.h for more information
+	tio.c_lflag=0;
+	tio.c_cc[VMIN]=1;
+	tio.c_cc[VTIME]=5;
+
+	tty_fd=open("/dev/ttyUSB0", O_RDWR | O_NONBLOCK);      
+	cfsetospeed(&tio,B9600);            // 9600 baud
+	cfsetispeed(&tio,B9600);            // 9600 baud
+
+	tcsetattr(tty_fd,TCSANOW,&tio);
+
+	while (c!='q'){
+		if (read(tty_fd,&c,1)>0) write(STDOUT_FILENO,&c,1);
+		// if new data is available on the serial port, print it out
+		if (Cm > 1999){
+			Cm = 0;
+			write(tty_fd, &cmd, 1);
+		} else {
+			Cm++;
+			delay(2000);
+		}
+		read(STDIN_FILENO,&c,1);
+		//if (read(STDIN_FILENO,&c,1)>0)  write(tty_fd,&c,1);
+		// if new data is available on the console, send it to the serial port
+	}
+	close(tty_fd);
+	tcsetattr(STDOUT_FILENO,TCSANOW,&old_stdio);
+}
+
+void delay(int milli_seconds)
+{
+    // Storing start time
+    clock_t start_time = clock();
+  
+    // looping till required time is not achieved
+    while (clock() < start_time + milli_seconds)
+        ;
+}
 
 void fnConectar(){
-	char a;
+	//Activar el hilo
+	pthread_t thread1;
+	int value = 0;		//identificador del hilo
+	if (0 != pthread_create(&thread1, NULL, thread_routine, &value))
+	//prototipo de funcion para hilo
+		return -1; //modificar para aviso de no conexion
 }
 
 void fnDesconectar(){
@@ -36,6 +109,7 @@ void fnAdquirir(){
 void fnDetener(){
 	char d;
 }
+
 
 //--------------------------------------------------------------- FUNCION MAIN
 int main (int argc, char **argv){
