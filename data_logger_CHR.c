@@ -6,7 +6,7 @@
 //* repositorio: https://github.com/Necrovalle/dataLoggerHR_chamber.git 
 //****************************************************************************
 //Comamdo de compilacion:
-//gcc data_logger_CHR.c -o hrDataloggers -pthread `pkg-config --cflags --libs gtk+-2.0`
+//gcc data_logger_CHR.c -o hrDatalogger -pthread `pkg-config --cflags --libs gtk+-2.0`
 
 //------------------------------------------------------------------ LIBRERIAS
 #include <stdio.h>
@@ -30,6 +30,7 @@ struct termios old_stdio;
 int tty_fd;
 unsigned char c='D';
 gchar *puertoSerie;
+gchar *nombreFile;
 //Declacion de punteros de la ventana
 GtkWidget *ventana, *layout;
 //declaracion de entradas
@@ -109,12 +110,24 @@ void fnConectar(){
 }
 
 void fnDesconectar(){
-	
+	gtk_widget_set_sensitive(btnConnect, TRUE);
+	gtk_widget_set_sensitive(btnDesc, FALSE);
 }
 
 void fnAdquirir(){
+	c = 'a';
 	//Activar el hilo
 	pthread_t thread1;
+	gtk_widget_set_sensitive(btnDetener, TRUE);
+	gtk_widget_set_sensitive(btnDesc, FALSE);
+	gtk_widget_set_sensitive(btnAdquirir, FALSE);
+	gtk_widget_set_sensitive(entPuerto, FALSE);
+	gtk_widget_set_sensitive(entFile, FALSE);
+	nombreFile = gtk_entry_get_text(entFile);
+	if (nombreFile[0] == '\0'){
+		nombreFile = "salida.csv";
+	}
+	g_print("Nombre del archivo: %s \n", nombreFile);
 	int value = 0;		//identificador del hilo
 	if (0 != pthread_create(&thread1, NULL, thread_routine, &value))
 	//prototipo de funcion para hilo
@@ -125,6 +138,11 @@ void fnAdquirir(){
 
 void fnDetener(){
 	c = 'q';
+	gtk_widget_set_sensitive(btnDetener, FALSE);
+	gtk_widget_set_sensitive(btnDesc, TRUE);
+	gtk_widget_set_sensitive(btnAdquirir, TRUE);
+	gtk_widget_set_sensitive(entPuerto, TRUE);
+	gtk_widget_set_sensitive(entFile, TRUE);
 }
 
 
