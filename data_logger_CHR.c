@@ -6,7 +6,7 @@
 //* repositorio: https://github.com/Necrovalle/dataLoggerHR_chamber.git 
 //****************************************************************************
 //Comamdo de compilacion:
-//gcc data_logger_CHR.c -o hrplotter -pthread `pkg-config --cflags --libs gtk+-2.0`
+//gcc data_logger_CHR.c -o hrDataloggers -pthread `pkg-config --cflags --libs gtk+-2.0`
 
 //------------------------------------------------------------------ LIBRERIAS
 #include <stdio.h>
@@ -29,12 +29,18 @@ struct termios stdio;
 struct termios old_stdio;
 int tty_fd;
 unsigned char c='D';
+gchar *puertoSerie;
+//Declacion de punteros de la ventana
+GtkWidget *ventana, *layout;
 //declaracion de entradas
 GtkWidget *entPuerto, *entFile;
+//Declatacion de botones
+GtkWidget *btnConnect, *btnDesc, *btnAdquirir, *btnDetener;
 
 //---------------------------------------------------------- FUNCIONES PROPIAS
 //Manejo de hilo
 void *thread_routine(void *arg){
+	int ST = 2000;
 	tcgetattr(STDOUT_FILENO,&old_stdio);
 	memset(&stdio,0,sizeof(stdio));
 	stdio.c_iflag=0;
@@ -55,74 +61,81 @@ void *thread_routine(void *arg){
 	tio.c_cc[VMIN]=1;
 	tio.c_cc[VTIME]=5;
 
-	tty_fd=open("/dev/ttyUSB0", O_RDWR | O_NONBLOCK);      
-	cfsetospeed(&tio,B9600);            // 9600 baud
-	cfsetispeed(&tio,B9600);            // 9600 baud
+	//tty_fd=open("/dev/ttyUSB0", O_RDWR | O_NONBLOCK);
+	tty_fd=open(puertoSerie, O_RDWR | O_NONBLOCK);
+	if (tty_fd == -1){
+		//mensaje de error
+	} else {      
+		cfsetospeed(&tio,B9600);            // 9600 baud
+		//cfsetispeed(&tio,B9600);            // 9600 baud
+		tcsetattr(tty_fd,TCSANOW,&tio);
 
-	tcsetattr(tty_fd,TCSANOW,&tio);
-
-	while (c!='q'){
-		if (read(tty_fd,&c,1)>0) write(STDOUT_FILENO,&c,1);
-		// if new data is available on the serial port, print it out
-		if (Cm > 1999){
-			Cm = 0;
-			write(tty_fd, &cmd, 1);
-		} else {
-			Cm++;
-			delay(2000);
+		while (c!='q'){
+			if (read(tty_fd,&c,1)>0) write(STDOUT_FILENO,&c,1);
+			// if new data is available on the serial port, print it out
+			if (Cm > 1999){
+				Cm = 0;
+				write(tty_fd, &cmd, 1);
+			} else {
+				Cm++;
+				delay_us(ST);
+			}
+			read(STDIN_FILENO,&c,1);
+			//if (read(STDIN_FILENO,&c,1)>0)  write(tty_fd,&c,1);
+			// if new data is available on the console, send it to the serial port
 		}
-		read(STDIN_FILENO,&c,1);
-		//if (read(STDIN_FILENO,&c,1)>0)  write(tty_fd,&c,1);
-		// if new data is available on the console, send it to the serial port
+		close(tty_fd);
+		tcsetattr(STDOUT_FILENO,TCSANOW,&old_stdio);
+		g_print("Adquisiscion detenida... \n");
 	}
-	close(tty_fd);
-	tcsetattr(STDOUT_FILENO,TCSANOW,&old_stdio);
 }
 
-void delay(int milli_seconds)
+void delay_us(int milli_seconds)
 {
     // Storing start time
     clock_t start_time = clock();
   
     // looping till required time is not achieved
-    while (clock() < start_time + milli_seconds)
+    while ((int)clock() < (int)start_time + milli_seconds)
         ;
 }
 
 void fnConectar(){
+	puertoSerie = gtk_entry_get_text(entPuerto);
+	gtk_widget_set_sensitive(btnConnect, FALSE);
+	gtk_widget_set_sensitive(btnDesc, TRUE);
+	gtk_widget_set_sensitive(btnAdquirir, TRUE);
+	g_print("Puero: %s \n", puertoSerie);
+}
+
+void fnDesconectar(){
+	
+}
+
+void fnAdquirir(){
 	//Activar el hilo
 	pthread_t thread1;
 	int value = 0;		//identificador del hilo
 	if (0 != pthread_create(&thread1, NULL, thread_routine, &value))
 	//prototipo de funcion para hilo
-		return -1; //modificar para aviso de no conexion
-}
-
-void fnDesconectar(){
-	char b;
-}
-
-void fnAdquirir(){
-	char c;
+	{
+		//mensaje de fall del hilo
+	}
 }
 
 void fnDetener(){
-	char d;
+	c = 'q';
 }
 
 
 //--------------------------------------------------------------- FUNCION MAIN
 int main (int argc, char **argv){
-	//Declacion de punteros de la ventana
-	GtkWidget *ventana, *layout;
 	//Declaracion de etiquetas
 	GtkWidget *lblSecConect, *lblPuerto, *lblFile, *lblEtMin, *lblEtAct;
 	GtkWidget *lblEtMax, *lblEtTamb, *lblEtHR, *lblEtH1, *lblEtH2, *lblLine1;
 	GtkWidget *lblLine2, *lblLine3, *lblLine4, *lblTamb, *lblHR, *lblH1;
 	GtkWidget *lblH2, *lblTambMin, *lblHRMin, *lblH1Min, *lblH2Min;
 	GtkWidget *lblTambMax, *lblHRMax, *lblH1Max, *lblH2Max;
-	//Declatacion de botones
-	GtkWidget *btnConnect, *btnDesc, *btnAdquirir, *btnDetener;
 
 	//Modificacion de fuente
 	PangoFontDescription *df;
@@ -132,6 +145,7 @@ int main (int argc, char **argv){
 	//configuracion de la ventana main
 	gtk_init(&argc, &argv);
 	ventana = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+	gtk_window_set_position(GTK_WINDOW(ventana), GTK_WIN_POS_CENTER);
 	g_signal_connect(ventana, "destroy", G_CALLBACK(gtk_main_quit), NULL);
 	gtk_window_set_title(GTK_WINDOW(ventana), "Prueba de humedad comparativa");
 	gtk_container_set_border_width(GTK_CONTAINER(ventana), 0);
@@ -208,6 +222,9 @@ int main (int argc, char **argv){
 	g_signal_connect(btnDesc, "clicked", G_CALLBACK(fnDesconectar), NULL);
 	g_signal_connect(btnAdquirir, "clicked", G_CALLBACK(fnAdquirir), NULL);
 	g_signal_connect(btnDetener, "clicked", G_CALLBACK(fnDetener), NULL);
+	gtk_widget_set_sensitive(btnDesc, FALSE);
+	gtk_widget_set_sensitive(btnAdquirir, FALSE);
+	gtk_widget_set_sensitive(btnDetener, FALSE);
 
 	//Posisionamiento
 	gtk_layout_put(GTK_LAYOUT(layout), lblSecConect, 10, 10);
@@ -248,4 +265,5 @@ int main (int argc, char **argv){
 	gtk_main();
 	return 0;
 
-}//----------------------------------------------------------- FIN DEL PROGRAMA
+}
+//----------------------------------------------------------- FIN DEL PROGRAMA
