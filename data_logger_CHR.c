@@ -2,7 +2,7 @@
 //* ADQUISICION DE DATOS DE CAMARA DE HUMEDAD 
 //* PARA PRUEBAS DE HIDROGEL
 //* DESARROLLADOR: Necrovalle
-//* VERSION: 0.4a
+//* VERSION: 0.5a
 //* repositorio: https://github.com/Necrovalle/dataLoggerHR_chamber.git 
 //****************************************************************************
 //Comamdo de compilacion:
@@ -31,6 +31,14 @@ int tty_fd;
 unsigned char c='D';
 gchar *puertoSerie;
 gchar *nombreFile;
+gchar *ENT;
+char aTamb_c[8];
+char aHR_c[8];
+char aH1_c[8];
+char aH2_c[8];
+int D1, D2, D3, D4;
+int nDat;
+int nDig;
 //Declacion de punteros de la ventana
 GtkWidget *ventana, *layout;
 //declaracion de entradas
@@ -41,6 +49,9 @@ GtkWidget *btnConnect, *btnDesc, *btnAdquirir, *btnDetener;
 //---------------------------------------------------------- FUNCIONES PROPIAS
 //Manejo de hilo
 void *thread_routine(void *arg){
+	//probar 
+	//char *p = g_strdup("Hello world");
+	int fd;
 	int ST = 2000;
 	tcgetattr(STDOUT_FILENO,&old_stdio);
 	memset(&stdio,0,sizeof(stdio));
@@ -68,12 +79,89 @@ void *thread_routine(void *arg){
 		//mensaje de error
 	} else {      
 		cfsetospeed(&tio,B9600);            // 9600 baud
-		//cfsetispeed(&tio,B9600);            // 9600 baud
 		tcsetattr(tty_fd,TCSANOW,&tio);
-
+		ENT = g_strdup("Tamb,HR,H1,H2\n");
+		fd = open(nombreFile, O_WRONLY|O_APPEND);
+		write(fd, ENT, g_utf8_strlen(ENT, -1));
+		close(fd);
+		nDat = 0;
+		nDig = 0;
 		while (c!='q'){
-			if (read(tty_fd,&c,1)>0) write(STDOUT_FILENO,&c,1);
-			// if new data is available on the serial port, print it out
+			if (read(tty_fd,&c,1)>0) {
+				write(STDOUT_FILENO,&c,1);
+				//verificar si es un : para aumento de dato ++
+				if (c == ':'){
+					//case para la coma o /n y caracter nulo final
+					switch (nDat){
+						case 0:
+							nDat++;
+							break;
+
+						case 1:
+							aTamb_c[nDig] = ',';
+							aTamb_c[nDig+1] = 0;
+							D1 = nDig;
+							nDat++;
+							break;
+
+						case 2:
+							aHR_c[nDig] = ',';
+							aHR_c[nDig+1] = 0;
+							D2 = nDig;
+							nDat++;
+							break;
+
+						case 3:
+							aH1_c[nDig] = ',';
+							aH1_c[nDig+1] = 0;
+							D3 = nDig;
+							nDat++;
+							break;
+
+						case 4:
+							aH2_c[nDig] = '\n';
+							aH2_c[nDig+1] = 0;
+							D4 = nDig;
+							fd = open(nombreFile, O_WRONLY|O_APPEND);
+							write(fd, aTamb_c, D1+1);
+							close(fd);
+							fd = open(nombreFile, O_WRONLY|O_APPEND);
+							write(fd, aHR_c, D2+1);
+							close(fd);
+							fd = open(nombreFile, O_WRONLY|O_APPEND);
+							write(fd, aH1_c, D3+1);
+							close(fd);
+							fd = open(nombreFile, O_WRONLY|O_APPEND);
+							write(fd, aH2_c, D4+1);
+							close(fd);
+							nDat = 0;
+							break;
+					}
+					if (nDat > 5){nDat = 5;}
+					nDig = 0;
+				} else {
+					//mandar a posicion actual al dato n
+					switch (nDat){
+						case 1:
+							aTamb_c[nDig] = c;
+							break;
+
+						case 2:
+							aHR_c[nDig] = c;
+							break;
+
+						case 3:
+							aH1_c[nDig] = c;
+							break;
+
+						case 4:
+							aH2_c[nDig] = c;
+							break;
+					}
+					nDig++;
+					if (nDig > 8){nDig = 8;}
+				}
+			}
 			if (Cm > 1999){
 				Cm = 0;
 				write(tty_fd, &cmd, 1);
@@ -81,7 +169,7 @@ void *thread_routine(void *arg){
 				Cm++;
 				delay_us(ST);
 			}
-			read(STDIN_FILENO,&c,1);
+			//read(STDIN_FILENO,&c,1);
 			//if (read(STDIN_FILENO,&c,1)>0)  write(tty_fd,&c,1);
 			// if new data is available on the console, send it to the serial port
 		}
@@ -106,7 +194,7 @@ void fnConectar(){
 	gtk_widget_set_sensitive(btnConnect, FALSE);
 	gtk_widget_set_sensitive(btnDesc, TRUE);
 	gtk_widget_set_sensitive(btnAdquirir, TRUE);
-	g_print("Puero: %s \n", puertoSerie);
+	//g_print("Puero: %s \n", puertoSerie); //DBG
 }
 
 void fnDesconectar(){
@@ -127,12 +215,12 @@ void fnAdquirir(){
 	if (nombreFile[0] == '\0'){
 		nombreFile = "salida.csv";
 	}
-	g_print("Nombre del archivo: %s \n", nombreFile);
+	//g_print("Nombre del archivo: %s \n", nombreFile); //DBG
 	int value = 0;		//identificador del hilo
 	if (0 != pthread_create(&thread1, NULL, thread_routine, &value))
 	//prototipo de funcion para hilo
 	{
-		//mensaje de fall del hilo
+		//mensaje de fallas del hilo
 	}
 }
 
