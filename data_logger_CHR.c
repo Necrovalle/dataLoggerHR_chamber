@@ -45,8 +45,21 @@ GtkWidget *ventana, *layout;
 GtkWidget *entPuerto, *entFile;
 //Declatacion de botones
 GtkWidget *btnConnect, *btnDesc, *btnAdquirir, *btnDetener;
+//Declaracion de etiquetas
+GtkWidget *lblSecConect, *lblPuerto, *lblFile, *lblEtMin, *lblEtAct;
+GtkWidget *lblEtMax, *lblEtTamb, *lblEtHR, *lblEtH1, *lblEtH2, *lblLine1;
+GtkWidget *lblLine2, *lblLine3, *lblLine4, *lblTamb, *lblHR, *lblH1;
+GtkWidget *lblH2, *lblTambMin, *lblHRMin, *lblH1Min, *lblH2Min;
+GtkWidget *lblTambMax, *lblHRMax, *lblH1Max, *lblH2Max;
 
 //---------------------------------------------------------- FUNCIONES PROPIAS
+void mostrarValoresGUI(){
+	gtk_label_set_text(GTK_LABEL(lblTamb), aTamb_c);
+	gtk_label_set_text(GTK_LABEL(lblHR), aHR_c);
+	gtk_label_set_text(GTK_LABEL(lblH1), aH1_c);
+	gtk_label_set_text(GTK_LABEL(lblH2), aH2_c); 
+}
+
 //Manejo de hilo
 void *thread_routine(void *arg){
 	//probar 
@@ -88,7 +101,7 @@ void *thread_routine(void *arg){
 		nDig = 0;
 		while (c!='q'){
 			if (read(tty_fd,&c,1)>0) {
-				write(STDOUT_FILENO,&c,1);
+				//write(STDOUT_FILENO,&c,1);
 				//verificar si es un : para aumento de dato ++
 				if (c == ':'){
 					//case para la coma o /n y caracter nulo final
@@ -124,17 +137,16 @@ void *thread_routine(void *arg){
 							D4 = nDig;
 							fd = open(nombreFile, O_WRONLY|O_APPEND);
 							write(fd, aTamb_c, D1+1);
-							close(fd);
-							fd = open(nombreFile, O_WRONLY|O_APPEND);
 							write(fd, aHR_c, D2+1);
-							close(fd);
-							fd = open(nombreFile, O_WRONLY|O_APPEND);
 							write(fd, aH1_c, D3+1);
-							close(fd);
-							fd = open(nombreFile, O_WRONLY|O_APPEND);
 							write(fd, aH2_c, D4+1);
 							close(fd);
+							aTamb_c[D1] = 0;
+							aHR_c[D2] = 0;
+							aH1_c[D3] = 0;
+							aH2_c[D4] = 0;
 							nDat = 0;
+							mostrarValoresGUI();
 							break;
 					}
 					if (nDat > 5){nDat = 5;}
@@ -175,7 +187,7 @@ void *thread_routine(void *arg){
 		}
 		close(tty_fd);
 		tcsetattr(STDOUT_FILENO,TCSANOW,&old_stdio);
-		g_print("Adquisiscion detenida... \n");
+		//g_print("Adquisicion detenida... \n"); //DBG
 	}
 }
 
@@ -236,12 +248,6 @@ void fnDetener(){
 
 //--------------------------------------------------------------- FUNCION MAIN
 int main (int argc, char **argv){
-	//Declaracion de etiquetas
-	GtkWidget *lblSecConect, *lblPuerto, *lblFile, *lblEtMin, *lblEtAct;
-	GtkWidget *lblEtMax, *lblEtTamb, *lblEtHR, *lblEtH1, *lblEtH2, *lblLine1;
-	GtkWidget *lblLine2, *lblLine3, *lblLine4, *lblTamb, *lblHR, *lblH1;
-	GtkWidget *lblH2, *lblTambMin, *lblHRMin, *lblH1Min, *lblH2Min;
-	GtkWidget *lblTambMax, *lblHRMax, *lblH1Max, *lblH2Max;
 
 	//Modificacion de fuente
 	PangoFontDescription *df;
