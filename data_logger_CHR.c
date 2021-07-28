@@ -29,8 +29,8 @@ struct termios stdio;
 struct termios old_stdio;
 int tty_fd;
 unsigned char c='D';
-gchar *puertoSerie;
-gchar *nombreFile;
+const gchar *puertoSerie;
+const gchar *nombreFile;
 gchar *ENT;
 char aTamb_c[8];
 char aHR_c[8];
@@ -58,6 +58,16 @@ void mostrarValoresGUI(){
 	gtk_label_set_text(GTK_LABEL(lblHR), aHR_c);
 	gtk_label_set_text(GTK_LABEL(lblH1), aH1_c);
 	gtk_label_set_text(GTK_LABEL(lblH2), aH2_c); 
+}
+
+void delay_us(int milli_seconds)
+{
+    // Storing start time
+    clock_t start_time = clock();
+  
+    // looping till required time is not achieved
+    while ((int)clock() < (int)start_time + milli_seconds)
+        ;
 }
 
 //Manejo de hilo
@@ -191,18 +201,8 @@ void *thread_routine(void *arg){
 	}
 }
 
-void delay_us(int milli_seconds)
-{
-    // Storing start time
-    clock_t start_time = clock();
-  
-    // looping till required time is not achieved
-    while ((int)clock() < (int)start_time + milli_seconds)
-        ;
-}
-
 void fnConectar(){
-	puertoSerie = gtk_entry_get_text(entPuerto);
+	puertoSerie = gtk_entry_get_text(GTK_ENTRY(entPuerto));
 	gtk_widget_set_sensitive(btnConnect, FALSE);
 	gtk_widget_set_sensitive(btnDesc, TRUE);
 	gtk_widget_set_sensitive(btnAdquirir, TRUE);
@@ -223,7 +223,7 @@ void fnAdquirir(){
 	gtk_widget_set_sensitive(btnAdquirir, FALSE);
 	gtk_widget_set_sensitive(entPuerto, FALSE);
 	gtk_widget_set_sensitive(entFile, FALSE);
-	nombreFile = gtk_entry_get_text(entFile);
+	nombreFile = gtk_entry_get_text(GTK_ENTRY(entFile));
 	if (nombreFile[0] == '\0'){
 		nombreFile = "salida.csv";
 	}
